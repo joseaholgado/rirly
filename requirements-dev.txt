@@ -1,0 +1,2 @@
+# Solo para ejecutar los tests (la app no necesita instalar nada)
+playwright==1.65.2

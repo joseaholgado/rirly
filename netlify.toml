@@ -1,0 +1,6 @@
+# Netlify conectado al repo: cada push a la rama principal publica la app.
+# No hay paso de compilación: se sirve la carpeta tal cual.
+# Las cabeceras de seguridad están en rirly-ios/_headers.
+[build]
+  publish = "rirly-ios"
+  command = ""

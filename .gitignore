@@ -1,0 +1,28 @@
+# ── Datos personales: planes y copias de seguridad NUNCA van al repo ──
+# Se ignora todo .json salvo el plan de ejemplo (sin datos personales).
+*.json
+!tests/plan-ejemplo.json
+
+# ── Python (tests) ──
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# ── Resultados de tests y logs ──
+test-results/
+*.log
+
+# ── Netlify CLI ──
+.netlify/
+
+# ── Node (por si se añade en el futuro) ──
+node_modules/
+
+# ── Editores y sistema ──
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+desktop.ini

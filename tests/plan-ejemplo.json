@@ -1,0 +1,52 @@
+{
+  "app": "rirly",
+  "kind": "plan",
+  "cfg": {
+    "v": 3,
+    "rules": "1. Calienta siempre antes de la primera serie.\n2. Sentadilla y peso muerto: nunca por debajo de RIR 2.\n3. Si duele (no molestia, dolor), para y cambia el ejercicio.\n4. Duerme 7-9 h y come proteína suficiente.",
+    "days": [
+      {
+        "id": "dia1", "name": "Día 1 · Torso", "type": "torso",
+        "exercises": [
+          { "id": "banca", "name": "Press banca", "sets": 5, "repsMin": 4, "repsMax": 5, "inc": 2.5, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "remo", "name": "Remo con barra", "sets": 4, "repsMin": 6, "repsMax": 8, "inc": 2.5, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "pmilitar", "name": "Press militar con mancuernas", "sets": 3, "repsMin": 8, "repsMax": 10, "inc": 2, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "ss": "A", "notes": "" },
+          { "id": "facepull", "name": "Face pull", "sets": 3, "repsMin": 12, "repsMax": 15, "inc": 1.25, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "ss": "A", "notes": "" }
+        ]
+      },
+      {
+        "id": "dia2", "name": "Día 2 · Pierna", "type": "pierna",
+        "exercises": [
+          { "id": "sentadilla", "name": "Sentadilla", "sets": 4, "repsMin": 4, "repsMax": 6, "inc": 2.5, "seq": "3·3·3·2·2·2·2·D", "kind": "load", "notes": "" },
+          { "id": "hipthrust", "name": "Hip thrust", "sets": 3, "repsMin": 8, "repsMax": 10, "inc": 5, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "plancha", "name": "Plancha isométrica", "sets": 3, "repsMin": 30, "repsMax": 45, "inc": 2.5, "seq": "3·3·3·3·3·3·3·D", "kind": "iso", "notes": "" }
+        ]
+      },
+      {
+        "id": "dia3", "name": "Día 3 · Torso", "type": "torso",
+        "exercises": [
+          { "id": "dominadaslastre", "name": "Dominadas lastradas", "sets": 4, "repsMin": 5, "repsMax": 7, "inc": 1.25, "seq": "3·3·2·2·2·1·1·D", "kind": "bwadd", "notes": "" },
+          { "id": "pinclinado", "name": "Press inclinado con mancuernas", "sets": 3, "repsMin": 8, "repsMax": 10, "inc": 2, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "curl", "name": "Curl con barra", "sets": 3, "repsMin": 10, "repsMax": 12, "inc": 1.25, "seq": "3·3·2·2·1·1·0·D", "kind": "load", "notes": "" }
+        ]
+      },
+      {
+        "id": "dia4", "name": "Día 4 · Pierna", "type": "pierna",
+        "exercises": [
+          { "id": "pesomuerto", "name": "Peso muerto convencional", "sets": 3, "repsMin": 5, "repsMax": 6, "inc": 2.5, "seq": "3·3·3·2·2·2·2·D", "kind": "load", "notes": "" },
+          { "id": "zancada", "name": "Zancada búlgara", "sets": 3, "repsMin": 8, "repsMax": 10, "inc": 2, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "gemelo", "name": "Elevación de gemelos", "sets": 3, "repsMin": 10, "repsMax": 15, "inc": 2.5, "seq": "3·3·2·2·1·1·0·D", "kind": "load", "notes": "" }
+        ]
+      },
+      {
+        "id": "dia5", "name": "Día 5 · Torso", "type": "torso",
+        "exercises": [
+          { "id": "bancavel", "name": "Press banca velocidad", "sets": 6, "repsMin": 3, "repsMax": 3, "inc": 1.25, "seq": "3·3·3·3·3·3·3·D", "kind": "pct", "ref": "banca", "notes": "Explosivo" },
+          { "id": "remomancuerna", "name": "Remo con mancuerna", "sets": 3, "repsMin": 8, "repsMax": 10, "inc": 2, "seq": "3·3·2·2·2·1·1·D", "kind": "load", "notes": "" },
+          { "id": "fondos", "name": "Fondos en paralelas", "sets": 3, "repsMin": 6, "repsMax": 10, "inc": 1.25, "seq": "3·3·2·2·2·1·1·D", "kind": "bwadd", "notes": "" },
+          { "id": "flexiones", "name": "Flexiones", "sets": 4, "repsMin": 8, "repsMax": 15, "inc": 2.5, "seq": "3·3·2·2·2·1·1·D", "kind": "bw", "notes": "" }
+        ]
+      }
+    ]
+  }
+}

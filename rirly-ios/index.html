@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; manifest-src 'self'; worker-src 'self'; connect-src 'self'; base-uri 'none'; form-action 'none'; object-src 'none'">
+<meta name="referrer" content="no-referrer">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="RIRLY">
+<meta name="theme-color" content="#080B09">
+<title>RIRLY · Registro y RIR</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="stylesheet" href="styles.css">
+<!-- El orden importa: cada archivo usa lo definido en los anteriores -->
+<script src="js/util.js" defer></script>
+<script src="js/datos.js" defer></script>
+<script src="js/motor.js" defer></script>
+<script src="js/vistas.js" defer></script>
+<script src="js/guia.js" defer></script>
+<script src="js/app.js" defer></script>
+</head>
+<body>
+<header>
+  <div class="top">
+    <div class="brand">RIR<span>LY</span></div>
+    <div class="wk">
+      <button data-act="wkprev" aria-label="Semana anterior">‹</button>
+      <div class="wkchip" id="wkchip"></div>
+      <button data-act="wknext" aria-label="Semana siguiente">›</button>
+    </div>
+  </div>
+  <nav id="tabs">
+    <button data-tab="hoy">Entrenar</button>
+    <button data-tab="programa">Programa</button>
+    <button data-tab="bloque">Ciclo</button>
+    <button data-tab="historial">Historial</button>
+  </nav>
+</header>
+<main id="view"></main>
+<div class="foot" id="foot" hidden></div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>
