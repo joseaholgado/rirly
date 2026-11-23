@@ -75,7 +75,7 @@ const ACTIONS = {
 const TAB_ORDER = ['hoy', 'programa', 'bloque', 'historial'];
 function goTab(tab) {
   const from = TAB_ORDER.indexOf(UI.tab), to = TAB_ORDER.indexOf(tab), view = $('#view');
-  UI.tab = tab; UI.confirm = null; render(); window.scrollTo(0, 0);
+  UI.tab = tab; UI.confirm = null; render(); resetScroll();
   if (from === to) return;
   view.classList.remove('slide-next', 'slide-prev');
   void view.offsetWidth; // reinicia la animación si se cambia de pestaña muy rápido
@@ -164,7 +164,7 @@ function saveCurrentSession() {
   const sess = buildSession(day, dr);
   if (!sess) { toast('Marca ✓ en las series que hayas hecho'); return; }
   S.sessions.push(sess); delete S.cfg.drafts[day.id];
-  saveLocalSessions(); persist(); render(); window.scrollTo(0, 0);
+  saveLocalSessions(); persist(); render(); resetScroll();
   toast('Sesión guardada 💪');
 }
 
@@ -222,7 +222,7 @@ function applyImport() {
   }
   if (!S.cfg.rules) S.cfg.rules = prev.rules;
   const ok = persist() && saveLocalSessions();
-  UI.tab = 'hoy'; render(); window.scrollTo(0, 0);
+  UI.tab = 'hoy'; render(); resetScroll();
   if (ok) toast(p.isPlan ? 'Plan cargado 💪' : 'Copia restaurada');
 }
 /** Conserva los borradores de los días y ejercicios que siguen existiendo en el plan nuevo. */

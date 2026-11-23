@@ -31,6 +31,9 @@ const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
 const roundTo = (x, inc) => Math.round(Math.round(x / inc) * inc * 100) / 100;
 const round1 = x => Math.round(x * 10) / 10;
 
+/** Vuelve arriba en la zona de contenido (la página en sí no se desplaza). */
+const resetScroll = () => { const s = $('.stage'); if (s) s.scrollTop = 0; };
+
 /* ---------- aviso flotante ---------- */
 function toast(msg) {
   const t = $('#toast');
