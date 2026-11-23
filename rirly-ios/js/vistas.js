@@ -13,7 +13,7 @@ const confirmBtn = (key, act, attrs, label) => UI.confirm === key
 
 function render() {
   const c = S.cfg, w = curWeek();
-  $('#wkchip').innerHTML = cycleOver() ? '<b>Ciclo terminado</b>' : `S${w + 1}/${c.weeks} · <b>${PHASES[w]}</b>`;
+  $('#wkchip').innerHTML = cycleOver() ? '<b>Ciclo terminado</b>' : `S${w + 1}/${c.weeks} · <b>${phaseOf(w)}</b>`;
   $('#tabs').dataset.active = UI.tab;
   document.querySelectorAll('#tabs button').forEach(b => {
     const on = b.dataset.tab === UI.tab;
@@ -55,13 +55,13 @@ function viewHoy() {
 function bannerHoy(w, ups) {
   const c = S.cfg;
   let html = '';
-  if (cycleOver()) html += `<div class="banner info"><b>Has terminado las ${c.weeks} semanas.</b> Empieza el ciclo nuevo: te subo 2,5 kg en torso y 5 kg en pierna donde completaste la S7.<br><button class="btn sm pri mt8" data-act="newcycle">Empezar ciclo nuevo</button></div>`;
-  if (w === c.weeks - 1) return html + `<div class="banner dl"><b>Semana ${w + 1} · Descarga.</b> Mitad de series, RIR 4–5 y la carga de la S1.</div>`;
-  if (ups) return html + `<div class="banner up"><b>Semana ${w + 1} · ${PHASES[w]}.</b> He reconfigurado tu sesión: <b>${ups}</b> ejercicio${ups > 1 ? 's suben' : ' sube'} de peso (⬆). Todo está precargado; cambia lo que quieras.</div>`;
-  return html + `<div class="banner info"><b>Semana ${w + 1} · ${PHASES[w]}.</b> Sesión precargada con lo que toca. Marca ✓ cada serie hecha o corrige los números.</div>`;
+  if (cycleOver()) html += `<div class="banner info"><b>Has terminado las ${c.weeks} semanas.</b> Empieza el ciclo nuevo: ${c.cyclesPlanned && c.cycle >= c.cyclesPlanned ? 'Era tu último ciclo planificado, pero puedes seguir: ' : ''}te subo 2,5 kg en torso y 5 kg en pierna donde completaste la S${lastWorkWeek() + 1}.<br><button class="btn sm pri mt8" data-act="newcycle">Empezar ciclo nuevo</button></div>`;
+  if (weekDeload(w)) return html + `<div class="banner dl"><b>Semana ${w + 1} · Descarga.</b> Mitad de series, RIR 4–5 y la carga de la S1.</div>`;
+  if (ups) return html + `<div class="banner up"><b>Semana ${w + 1} · ${phaseOf(w)}.</b> He reconfigurado tu sesión: <b>${ups}</b> ejercicio${ups > 1 ? 's suben' : ' sube'} de peso (⬆). Todo está precargado; cambia lo que quieras.</div>`;
+  return html + `<div class="banner info"><b>Semana ${w + 1} · ${phaseOf(w)}.</b> Sesión precargada con lo que toca. Marca ✓ cada serie hecha o corrige los números.</div>`;
 }
 function warmupCard(type) {
-  const items = WARMUP.filter(x => x[2] === 'all' || x[2] === type);
+  const items = WARMUP.filter(x => x[2] === 'all' || x[2] === regionOf(type));
   return `<div class="card"><details><summary><b class="tx">🔥 Calentamiento</b> · 10–12 min</summary><div class="wu mt8">${items.map(x => `<label><input type="checkbox"><div>${esc(x[0])}<div class="d">${esc(x[1])}</div></div></label>`).join('')}</div></details></div>`;
 }
 function exerciseCard(day, exo, idx, pl, ent) {
@@ -111,10 +111,10 @@ function viewPrograma() {
   let html = `<h2>Programa</h2>
   <div class="card"><div class="grid2"><div><label class="f">Peso corporal (para lastrados)</label><input class="num" inputmode="decimal" data-g="bodyweight" value="${esc(c.bodyweight)}" placeholder="80"></div>
   <div class="end"><span class="mut small">Tus datos solo están en este móvil.</span></div></div>
-  <p class="mut small mb0">RIR por semana: 8 valores entre 0 y 5; la D es la descarga (ej. 3·3·2·2·2·1·1·D). Tipo: carga, lastre, peso corporal, isometría o % de banca.</p></div>`;
+  <p class="mut small mb0">RIR por semana: valores entre 0 y 5; la D es la descarga (ej. 3·3·2·2·2·1·1·D). Si fijas un RIR en Ciclo, ese manda. Tipo: carga, lastre, peso corporal, isometría o % de banca.</p></div>`;
   c.days.forEach(day => {
     html += `<div class="card"><div class="row"><input class="bold" data-p="dayname" data-d="${day.id}" value="${esc(day.name)}">
-      <select class="w-auto" data-p="daytype" data-d="${day.id}">${opt('torso', 'Torso', day.type === 'torso')}${opt('pierna', 'Pierna', day.type === 'pierna')}</select>
+      <select class="w-auto" data-p="daytype" data-d="${day.id}">${DAY_GROUPS.map(([g, items]) => `<optgroup label="${esc(g)}">${items.map(([v, l]) => opt(v, l, day.type === v)).join('')}</optgroup>`).join('')}</select>
       ${confirmBtn('day' + day.id, 'delday', `data-d="${day.id}"`, 'Borrar día')}</div>`;
     day.exercises.forEach((exo, i) => { html += exerciseEditor(day, exo, i); });
     html += `<button class="btn sm mt12" data-act="addex" data-d="${day.id}">+ Ejercicio</button></div>`;
@@ -138,7 +138,7 @@ function exerciseEditor(day, exo, i) {
       ${field('Superserie', `<input class="num" data-p="ss" ${a} value="${esc(exo.ss)}" placeholder="—" maxlength="2">`)}
       ${field('Tipo', `<select data-p="kind" ${a}>${KIND_LABELS.map(([v, l]) => opt(v, l, exo.kind === v)).join('')}</select>`)}
     </div>
-    <div class="mt8">${field('RIR S1 → S8', `<input class="mono" data-p="seq" ${a} value="${esc(exo.seq)}">`)}</div>
+    <div class="mt8">${field(`RIR S1 → S${S.cfg.weeks}`, `<input class="mono" data-p="seq" ${a} value="${esc(exo.seq)}">`)}</div>
     <div class="mt8">${field('Enlace al vídeo (vacío = búsqueda en YouTube)', `<input data-p="link" ${a} value="${esc(exo.link)}" placeholder="https://…" inputmode="url">`)}</div>
     <div class="row mt8"><input data-p="notes" ${a} value="${esc(exo.notes)}" placeholder="Nota">
       ${confirmBtn('ex' + exo.id, 'delex', a, 'Borrar ejercicio')}</div>
@@ -148,15 +148,21 @@ function exerciseEditor(day, exo, i) {
 /* ---------- Ciclo ---------- */
 function viewCiclo() {
   const c = S.cfg, w = curWeek(), over = cycleOver();
-  const weeks = PHASES.map((ph, i) => `<div class="w ${i === w && !over ? 'cur' : ''}">
-      <div class="wl">S${i + 1}${i === w && !over ? ' ●' : ''}</div><div>${ph}<div class="mut small">${fdate(addDays(c.cycleStart, i * 7))} – ${fdate(addDays(c.cycleStart, i * 7 + 6))}</div></div>
+  const rirOpts = v => [['', 'Plan'], ...[0, 1, 2, 3, 4, 5].map(r => [r, 'RIR ' + r]), ['D', 'Desc.']].map(([x, l]) => opt(x, l, String(v) === String(x))).join('');
+  const weeks = Array.from({ length: c.weeks }, (_, i) => `<div class="w ${i === w && !over ? 'cur' : ''}">
+      <div class="wl">S${i + 1}${i === w && !over ? ' ●' : ''}</div><div>${phaseOf(i)}<div class="mut small">${fdate(addDays(c.cycleStart, i * 7))} – ${fdate(addDays(c.cycleStart, i * 7 + 6))}</div></div>
+      <select class="rirsel" data-rirw="${i}" aria-label="RIR de la semana ${i + 1}">${rirOpts(c.rirPlan[i])}</select>
       ${i !== w ? `<button class="btn sm ghost" data-act="setwk" data-i="${i}">Ir</button>` : '<span></span>'}</div>`).join('');
-  return `<h2>Ciclo ${c.cycle}</h2>
-  <div class="card"><div class="grid2"><div><label class="f">Empezó el lunes</label><input type="date" data-g="cycleStart" value="${esc(c.cycleStart)}"></div>
+  const weekOpts = Array.from({ length: WEEKS_MAX - WEEKS_MIN + 1 }, (_, i) => opt(i + WEEKS_MIN, `${i + WEEKS_MIN} semanas`, c.weeks === i + WEEKS_MIN)).join('');
+  return `<h2>Ciclo ${c.cycle}${c.cyclesPlanned >= c.cycle ? ` de ${c.cyclesPlanned}` : ''}</h2>
+  <div class="card"><div class="grid2"><div><label class="f">Número de ciclos</label><input class="num" inputmode="numeric" data-g="cyclesPlanned" value="${c.cyclesPlanned || ''}" placeholder="Sin límite"></div>
+    <div><label class="f">Semanas por ciclo</label><select data-g="weeks">${weekOpts}</select></div></div>
+    <div class="grid2 mt10"><div><label class="f">Empezó el lunes</label><input type="date" data-g="cycleStart" value="${esc(c.cycleStart)}"></div>
     <div class="end"><span class="mut small">La semana cambia sola cada lunes.</span></div></div>
+    <p class="mut small mb0">RIR de cada semana: <span class="tx">Plan</span> usa el de cada ejercicio; un número lo fija para todos; <span class="tx">Desc.</span> es descarga.</p>
     <div class="weeks mt10">${weeks}</div>
     <button class="btn full pri mt14" data-act="newcycle">Empezar ciclo nuevo</button>
-    <p class="mut small">Al empezar ciclo: +2,5 kg torso y +5 kg pierna sobre tu S1 en los ejercicios donde completaste la S7.</p></div>
+    <p class="mut small">Al empezar ciclo: +2,5 kg en tren superior y +5 kg en tren inferior sobre tu S1 en los ejercicios donde completaste la última semana de trabajo.</p></div>
 
   <div class="card"><div class="row"><div class="sp"><h3>Ayuda</h3><span class="mut small">Repasa cómo funciona la app.</span></div><button class="btn sm" data-act="guide">📖 Ver guía</button></div></div>
 
@@ -187,35 +193,89 @@ function viewHistorial() {
   S.cfg.days.forEach(d => d.exercises.forEach(e => { if (exMap.has(e.id)) exMap.set(e.id, e.name); }));
   if (!UI.histEx || !exMap.has(UI.histEx)) UI.histEx = exMap.keys().next().value || null;
   let html = `<h2>Historial</h2>`;
-  if (UI.histEx) {
-    const pts = historyOf(UI.histEx).filter(h => !h.deload).reverse();
-    html += `<div class="card"><label class="f">Progreso de fuerza (e1RM estimado)</label>
-    <select data-act="histex">${[...exMap].map(([id, n]) => opt(id, n, id === UI.histEx)).join('')}</select>${chart(pts)}</div>`;
-  }
+  if (UI.histEx) html += progressCard(exMap);
+  html += volumeCard();
   html += '<div class="card">' + ss.map(sessionRow).join('') + '</div>';
   return html;
+}
+const METRICS = { e: ['Fuerza', 'e1RM estimado', h => h.e], kg: ['Peso', 'Peso máximo', h => h.maxKg], vol: ['Volumen', 'Volumen (kg × reps)', h => h.vol] };
+const kgTxt = v => Math.round(v).toLocaleString('es-ES') + ' kg';
+const valTxt = (m, v) => m === 'vol' ? kgTxt(v) : fmt(round1(v)) + ' kg';
+const Chart = { line: [], bars: [] };   // datos de la gráfica en pantalla, para leer el punto tocado
+
+function progressCard(exMap) {
+  const m = Object.hasOwn(METRICS, UI.histMetric) ? UI.histMetric : 'e', get = METRICS[m][2];
+  const pts = historyOf(UI.histEx).filter(h => !h.deload).reverse(), vals = pts.map(get);
+  const tabs = Object.entries(METRICS).map(([k, x]) => `<button class="seg ${k === m ? 'on' : ''}" data-act="histmetric" data-m="${k}" aria-pressed="${k === m}">${x[0]}</button>`).join('');
+  let kpis = '';
+  if (vals.length) {
+    const d = vals[vals.length - 1] - vals[0], arrow = d > 0 ? '↑' : d < 0 ? '↓' : '=';
+    const tile = (l, v) => `<div class="kpi"><div class="kpi-l">${l}</div><div class="kpi-v">${v}</div></div>`;
+    kpis = `<div class="kpis">${tile('Actual', valTxt(m, vals[vals.length - 1]))}${tile('Mejor', valTxt(m, Math.max(...vals)))}${tile('Cambio', `${arrow} ${valTxt(m, Math.abs(d))}`)}</div>`;
+  }
+  return `<div class="card"><h3>Progreso</h3>
+    <select class="mt8" data-act="histex" aria-label="Ejercicio">${[...exMap].map(([id, n]) => opt(id, n, id === UI.histEx)).join('')}</select>
+    <div class="segs mt8" role="group" aria-label="Métrica">${tabs}</div>${kpis}${lineChart(pts, m)}</div>`;
+}
+function lineChart(pts, m) {
+  Chart.line = [];
+  if (pts.length < 2) return `<p class="mut small">Con 2 sesiones de este ejercicio verás la curva.</p>`;
+  const get = METRICS[m][2], W = 340, H = 190, L = 46, Rg = 12, T = 12, B = 26;
+  const vals = pts.map(get), rawMin = Math.min(...vals), rawMax = Math.max(...vals), margin = ((rawMax - rawMin) || Math.max(rawMax * 0.05, 1)) * 0.15;
+  const lo = Math.max(0, rawMin - margin), hi = rawMax + margin, days = pts.map(p => daysBetween(pts[0].sess.date, p.sess.date)), span = days[days.length - 1];
+  const px = i => L + (span > 0 ? days[i] / span : i / (pts.length - 1)) * (W - L - Rg), py = v => T + (hi - v) / (hi - lo) * (H - T - B);
+  const xy = pts.map((p, i) => [round1(px(i)), round1(py(vals[i]))]);
+  const grid = [0, 0.5, 1].map(f => { const v = lo + (hi - lo) * f, y = round1(py(v)); return `<line class="ch-grid" x1="${L}" x2="${W - Rg}" y1="${y}" y2="${y}"/><text class="ch-txt" x="${L - 6}" y="${y + 4}" text-anchor="end">${Math.round(v).toLocaleString('es-ES')}</text>`; }).join('');
+  const hit = xy.map((p, i) => { const a = i ? (xy[i - 1][0] + p[0]) / 2 : L, b = i < xy.length - 1 ? (p[0] + xy[i + 1][0]) / 2 : W - Rg; return `<rect class="ch-hit" data-act="linept" data-i="${i}" x="${round1(a)}" y="${T}" width="${round1(Math.max(b - a, 1))}" height="${H - T - B}"/>`; }).join('');
+  const last = xy[xy.length - 1];
+  Chart.line = pts.map((p, i) => ({ x: xy[i][0], y: xy[i][1], text: `${fdate(p.sess.date)} · ${valTxt(m, vals[i])} · ${p.kgs.map((k, j) => `${fmt(k)}×${p.reps[j]}`).join(', ')}` }));
+  const rows = pts.map((p, i) => `<tr><td>${fdate(p.sess.date)}</td><td>${esc(valTxt(m, vals[i]))}</td></tr>`).reverse().join('');
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="mt10 ch" role="img" aria-label="Evolución de ${esc(METRICS[m][1])}: de ${esc(valTxt(m, vals[0]))} a ${esc(valTxt(m, vals[vals.length - 1]))}">
+    ${grid}<polyline class="ch-line" points="${xy.map(p => p.join(',')).join(' ')}"/>
+    ${xy.length <= 14 ? xy.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="4" class="ch-dot"/>`).join('') : ''}
+    <line id="line-cur" class="ch-cursor" x1="${last[0]}" x2="${last[0]}" y1="${T}" y2="${H - B}"/><circle id="line-dot" class="ch-active" cx="${last[0]}" cy="${last[1]}" r="5.5"/>
+    <text class="ch-txt" x="${L}" y="${H - 7}">${esc(fdate(pts[0].sess.date))}</text><text class="ch-txt" x="${W - Rg}" y="${H - 7}" text-anchor="end">${esc(fdate(pts[pts.length - 1].sess.date))}</text>${hit}</svg>
+    <div class="ch-read" id="line-read" aria-live="polite">${esc(Chart.line[Chart.line.length - 1].text)}</div>
+    <details class="ch-data"><summary>Ver datos</summary><table><thead><tr><th>Fecha</th><th>${esc(METRICS[m][0])}</th></tr></thead><tbody>${rows}</tbody></table></details>`;
+}
+/** Volumen total (kg × reps) de las últimas 8 semanas, incluidas las vacías. */
+function weeklyVolume() {
+  const now = mondayOf(today()), weeks = Array.from({ length: 8 }, (_, i) => ({ start: addDays(now, (i - 7) * 7), vol: 0 }));
+  const byStart = new Map(weeks.map(x => [x.start, x]));
+  S.sessions.forEach(s => {
+    const wk = byStart.get(mondayOf(s.date)); if (!wk) return;
+    Object.keys(s.entries || {}).forEach(id => {
+      const exo = exoById(id), st = statsOf(s, id, exo);
+      if (st && ((exo && exo.kind) || s.entries[id].kind) !== 'iso') wk.vol += st.vol;
+    });
+  });
+  return weeks;
+}
+function volumeCard() {
+  const weeks = weeklyVolume(), W = 340, H = 150, L = 8, Rg = 8, T = 10, B = 24, mx = Math.max(...weeks.map(x => x.vol));
+  Chart.bars = weeks.map(x => `Semana del ${fdate(x.start)} · ${x.vol ? kgTxt(x.vol) : 'sin sesiones'}`);
+  if (!mx) return `<div class="card"><h3>Volumen semanal</h3><p class="mut small mb0">Aún no hay volumen en las últimas 8 semanas.</p></div>`;
+  const slot = (W - L - Rg) / 8, bw = slot - 8, base = H - B, plot = base - T;
+  const bars = weeks.map((x, i) => {
+    const h = x.vol ? Math.max(3, x.vol / mx * plot) : 0, X = round1(L + i * slot + 4), Y = round1(base - h), r = Math.min(4, h, bw / 2);
+    const shape = h ? `<path class="ch-bar ${i === 7 ? 'cur' : ''}" data-bar="${i}" d="M${X} ${base}V${round1(Y + r)}Q${X} ${Y} ${round1(X + r)} ${Y}H${round1(X + bw - r)}Q${round1(X + bw)} ${Y} ${round1(X + bw)} ${round1(Y + r)}V${base}Z"/>` : '';
+    const label = i % 2 === 1 ? `<text class="ch-txt" x="${round1(X + bw / 2)}" y="${H - 7}" text-anchor="middle">${esc(fdate(x.start))}</text>` : '';
+    return shape + label + `<rect class="ch-hit" data-act="volpt" data-i="${i}" x="${round1(L + i * slot)}" y="${T}" width="${round1(slot)}" height="${plot}"/>`;
+  }).join('');
+  const rows = weeks.slice().reverse().map(x => `<tr><td>${esc(fdate(x.start))}</td><td>${x.vol ? esc(kgTxt(x.vol)) : '—'}</td></tr>`).join('');
+  return `<div class="card"><h3>Volumen semanal</h3><p class="mut small mb0">Kilos × repeticiones de todos tus ejercicios.</p>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" class="mt10 ch" role="img" aria-label="Volumen de las últimas 8 semanas; máximo ${esc(kgTxt(mx))}"><line class="ch-axis" x1="${L}" x2="${W - Rg}" y1="${base}" y2="${base}"/>${bars}</svg>
+    <div class="ch-read" id="vol-read" aria-live="polite">${esc(Chart.bars[7])}</div>
+    <details class="ch-data"><summary>Ver datos</summary><table><thead><tr><th>Semana</th><th>Volumen</th></tr></thead><tbody>${rows}</tbody></table></details></div>`;
 }
 function sessionRow(s) {
   const setTxt = x => `${x.kg ? fmt(x.kg) + '×' : ''}${x.reps}${x.rir != null ? '@' + x.rir : ''}`;
   const lines = Object.values(s.entries || {}).map(e => `<div class="kv"><span class="mut">${esc(e.name)}:</span> ${esc((e.sets || []).map(setTxt).join(', '))}</div>`).join('');
   const wk = s.week ?? 0;
-  return `<div class="sess"><div class="row"><div class="sp"><b>${fdate(s.date)}</b> · ${esc(s.dayName || '')}<div class="mut small mono">Ciclo ${s.cycle || 1} · S${wk + 1} ${PHASES[wk] || ''}</div></div>
+  return `<div class="sess"><div class="row"><div class="sp"><b>${fdate(s.date)}</b> · ${esc(s.dayName || '')}<div class="mut small mono">Ciclo ${s.cycle || 1} · S${wk + 1} ${esc(s.phase || PHASES[wk] || '')}</div></div>
     ${confirmBtn('s' + s.id, 'delsess', `data-id="${s.id}"`, 'Borrar sesión')}</div>
     <div class="mt6">${lines}</div></div>`;
 }
-function chart(pts) {
-  if (pts.length < 2) return `<p class="mut small">Con 2 sesiones de este ejercicio verás la curva.</p>`;
-  const W = 320, H = 120, pad = 22, vals = pts.map(p => p.e), mn = Math.min(...vals), mx = Math.max(...vals), rg = (mx - mn) || 1;
-  const xy = pts.map((p, i) => [pad + i * (W - pad * 2) / (pts.length - 1), H - pad - (p.e - mn) / rg * (H - pad * 2)]);
-  const d = vals[vals.length - 1] - vals[0];
-  return `<svg viewBox="0 0 ${W} ${H}" width="100%" class="mt10" role="img" aria-label="Evolución del e1RM">
-    <polyline class="ch-line" points="${xy.map(p => p.join(',')).join(' ')}"/>
-    ${xy.map(p => `<circle cx="${p[0]}" cy="${p[1]}" r="3.5" class="ch-dot"/>`).join('')}
-    <text x="${pad}" y="14" class="ch-txt">${fmt(round1(mx))} kg</text>
-    <text x="${pad}" y="${H - 4}" class="ch-txt">${fmt(round1(mn))} kg</text></svg>
-    <div class="row small"><span class="mut">${fmt(round1(vals[0]))} → ${fmt(round1(vals[vals.length - 1]))} kg</span><span class="sp"></span><b class="${d >= 0 ? 'c-ok' : 'c-warn'}">${d >= 0 ? '+' : ''}${fmt(round1(d))} kg</b></div>`;
-}
-
 /* ---------- ventana de confirmación ---------- */
 function openModal(title, bodyHtml, okLabel) {
   closeModal();

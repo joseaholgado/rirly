@@ -21,6 +21,10 @@ html, body { margin: 0; -webkit-tap-highlight-color: transparent; overscroll-beh
 h2 { font-size: 18px; margin: 4px 0 12px; letter-spacing: -.01em }
 h3 { font-size: 16px; margin: 0 }
 input, select, textarea { background: var(--bg); border: 1px solid var(--line); color: var(--tx); border-radius: 9px; padding: 9px 10px; font: 500 15px var(--sans); width: 100%; min-width: 0 }
+input, select, textarea { color-scheme: dark }
+/* Safari ignora el fondo del desplegable nativo: se dibuja con estilo propio */
+select { -webkit-appearance: none; appearance: none; padding-right: 26px; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2396A39A' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 9px center; background-size: 11px 8px }
+select option, select optgroup { background: var(--card); color: var(--tx) }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--up) }
 input::placeholder { color: #66716A }
 input.num { font-family: var(--mono); text-align: center; font-size: 16px }
@@ -144,9 +148,10 @@ textarea.io { margin-top: 10px; font-size: 12px }
 .exedit { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 12px }
 
 /* ---------- Ciclo ---------- */
-.weeks .w { display: grid; grid-template-columns: 52px 1fr auto; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
+.weeks .w { display: grid; grid-template-columns: 44px minmax(0, 1fr) 82px 40px; gap: 8px; align-items: center; padding: 8px 0; border-bottom: 1px solid var(--line) }
 .weeks .w.cur .wl { color: var(--up); font-weight: 800 }
 .wl { font-family: var(--mono) }
+.rirsel { padding: 7px 4px; font-size: 13px }
 .explain p { margin: 6px 0; font-size: 14px; line-height: 1.5; color: var(--soft) }
 .explain code { font-family: var(--mono); background: var(--bg); padding: 1px 5px; border-radius: 5px; font-size: 13px }
 
@@ -161,9 +166,30 @@ textarea.io { margin-top: 10px; font-size: 12px }
 .tour-text { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--soft) }
 
 /* ---------- Historial ---------- */
-.ch-line { fill: none; stroke: var(--up); stroke-width: 2.5; stroke-linejoin: round }
-.ch-dot { fill: var(--card); stroke: var(--up); stroke-width: 2 }
+.ch { display: block; touch-action: pan-y }
+.ch-grid { stroke: var(--line); stroke-width: 1 }
+.ch-axis { stroke: var(--mut); stroke-width: 1 }
+.ch-line { fill: none; stroke: var(--up); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round }
+.ch-dot { fill: var(--up); stroke: var(--card); stroke-width: 2 }
+.ch-active { fill: var(--up); stroke: var(--tx); stroke-width: 2; pointer-events: none }
+.ch-cursor { stroke: var(--mut); stroke-width: 1; stroke-dasharray: 3 3; pointer-events: none }
+.ch-bar { fill: rgba(163,255,18,.34); transition: fill .15s }
+.ch-bar.cur { fill: var(--up) }
+.ch-hit { fill: transparent; cursor: pointer }
 .ch-txt { fill: var(--mut); font-size: 11px }
+.ch-read { min-height: 18px; margin-top: 6px; color: var(--soft); font: 500 12px var(--mono); line-height: 1.4; overflow-wrap: anywhere }
+.ch-data { margin-top: 8px }
+.ch-data table { width: 100%; margin-top: 6px; border-collapse: collapse; font: 12px var(--mono); color: var(--soft) }
+.ch-data th, .ch-data td { text-align: left; padding: 5px 0; border-bottom: 1px solid var(--line) }
+.ch-data th { color: var(--mut); font-weight: 600 }
+.ch-data td:last-child, .ch-data th:last-child { text-align: right }
+.segs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 3px; padding: 3px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px }
+.seg { min-height: 34px; border: none; border-radius: 7px; background: none; color: var(--mut); font: 600 13px var(--sans); cursor: pointer; transition: background .15s, color .15s }
+.seg.on { background: var(--card2); color: var(--tx) }
+.kpis { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-top: 10px }
+.kpi { min-width: 0; padding: 8px; border-radius: 9px; background: var(--bg); border: 1px solid var(--line) }
+.kpi-l { color: var(--mut); font-size: 11px }
+.kpi-v { margin-top: 2px; color: var(--tx); font: 700 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
 .sess { border-top: 1px solid var(--line); padding: 10px 0 }
 .sess:first-child { border-top: none }
 .kv { font-family: var(--mono); font-size: 13px; color: var(--soft) }

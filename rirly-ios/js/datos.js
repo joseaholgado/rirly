@@ -11,6 +11,16 @@ const VERSION = 3;
 const SA = '3·3·2·2·2·1·1·D';
 const SC = '3·3·3·2·2·2·2·D';
 const PHASES = ['Adaptación', 'Adaptación', 'Acumulación', 'Acumulación', 'Intensificación', 'Intensificación', 'Pico', 'Descarga'];
+const WEEKS_DEFAULT = PHASES.length, WEEKS_MIN = 2, WEEKS_MAX = 16, CYCLES_MAX = 99;
+// Tipo de día: la zona decide el calentamiento y la subida de carga por ciclo.
+const DAY_GROUPS = [
+  ['General', [['torso', 'Torso'], ['pierna', 'Pierna']]],
+  ['Tren superior', [['pecho', 'Pecho'], ['espalda', 'Espalda'], ['hombro', 'Hombro'], ['biceps', 'Bíceps'], ['triceps', 'Tríceps'], ['antebrazo', 'Antebrazo'], ['core', 'Core']]],
+  ['Tren inferior', [['cuadriceps', 'Cuádriceps'], ['femoral', 'Femoral'], ['gluteo', 'Glúteo'], ['gemelo', 'Gemelo']]]
+];
+const DAY_TYPES = DAY_GROUPS.flatMap(g => g[1].map(x => x[0]));
+const LOWER_TYPES = ['pierna', 'cuadriceps', 'femoral', 'gluteo', 'gemelo'];
+const regionOf = type => LOWER_TYPES.includes(type) ? 'pierna' : 'torso';
 const KINDS = ['load', 'bwadd', 'bw', 'iso', 'pct'];
 const KIND_LABELS = [['load', 'Carga'], ['bwadd', 'Lastre'], ['bw', 'Corporal'], ['iso', 'Isometría'], ['pct', '% banca']];
 const INCS = [0.5, 1, 1.25, 2, 2.5, 5];
@@ -34,7 +44,7 @@ function newExercise(name, sets, repsMin, repsMax, inc, seq, extra) {
 }
 function newDay(n) { return { id: uid(), name: 'Día ' + n, type: 'torso', exercises: [] }; }
 function DEFAULT() {
-  return { v: VERSION, cycle: 1, cycleStart: mondayOf(today()), weeks: PHASES.length, bodyweight: '', rules: '', days: [], drafts: {}, updatedAt: Date.now() };
+  return { v: VERSION, cycle: 1, cycleStart: mondayOf(today()), weeks: WEEKS_DEFAULT, cyclesPlanned: 0, rirPlan: [], prevPeak: null, bodyweight: '', rules: '', days: [], drafts: {}, updatedAt: Date.now() };
 }
 
 /** Convierte "3·3·2·2·2·1·1·D" en [3,3,2,2,2,1,1,'D'] con n valores; cada RIR entre 0 y 5. */
@@ -93,11 +103,17 @@ function sanitizeDraft(d) {
   });
   return out;
 }
+/** RIR elegido por semana: '' = el de cada ejercicio, 0–5 = fijo, 'D' = descarga. */
+function sanitizeRirPlan(a) {
+  return (Array.isArray(a) ? a : []).slice(0, WEEKS_MAX).map(x => x === 'D' ? 'D' : (/^[0-5]$/.test(String(x)) ? +x : ''));
+}
 /** Reconstruye la configuración solo con campos conocidos y valores acotados. null si no es válida. */
 function sanitizeCfg(c) {
   if (!isObj(c)) return null;
   const out = {
     v: nz(c.v, 0, 99, 0), cycle: int(c.cycle, 1, 999, 1), cycleStart: isDate(c.cycleStart) ? c.cycleStart : undefined,
+    weeks: int(c.weeks, WEEKS_MIN, WEEKS_MAX, WEEKS_DEFAULT), cyclesPlanned: int(c.cyclesPlanned, 0, CYCLES_MAX, 0), rirPlan: sanitizeRirPlan(c.rirPlan),
+    prevPeak: c.prevPeak == null ? null : int(c.prevPeak, 0, WEEKS_MAX - 1, 0),
     bodyweight: str(c.bodyweight, 6).replace(/[^0-9.,]/g, ''), rules: str(c.rules, 4000),
     days: [], drafts: {}, updatedAt: nz(c.updatedAt, 0, 1e15, Date.now())
   };
@@ -105,7 +121,7 @@ function sanitizeCfg(c) {
   (Array.isArray(c.days) ? c.days : []).slice(0, LIMITS.days).forEach(d => {
     if (!isObj(d) || !isId(d.id) || dayIds.has(d.id)) return;
     dayIds.add(d.id);
-    const day = { id: d.id, name: str(d.name, 80), type: d.type === 'pierna' ? 'pierna' : 'torso', exercises: [] };
+    const day = { id: d.id, name: str(d.name, 80), type: DAY_TYPES.includes(d.type) ? d.type : 'torso', exercises: [] };
     (Array.isArray(d.exercises) ? d.exercises : []).slice(0, LIMITS.exercises).forEach(e => {
       if (!isObj(e) || !isId(e.id) || exIds.has(e.id)) return;
       exIds.add(e.id);
@@ -143,8 +159,9 @@ function sanitizeSessions(arr) {
     });
     const o = {
       id: s.id, date: s.date, createdAt: nz(s.createdAt, 0, 1e15, 0), dayId: isId(s.dayId) ? s.dayId : '', dayName: str(s.dayName, 80),
-      cycle: int(s.cycle, 1, 999, 1), week: int(s.week, 0, PHASES.length - 1, 0), deload: s.deload === true, entries
+      cycle: int(s.cycle, 1, 999, 1), week: int(s.week, 0, WEEKS_MAX - 1, 0), deload: s.deload === true, entries
     };
+    if (s.phase) o.phase = str(s.phase, 24);
     if (s.rir != null) o.rir = nz(s.rir, 0, 10, 3);
     out.push(o);
   });
@@ -163,7 +180,11 @@ function normalize(c) {
     }));
   }
   c.v = VERSION;
-  c.weeks = PHASES.length;
+  c.weeks = clamp(Math.round(+c.weeks) || WEEKS_DEFAULT, WEEKS_MIN, WEEKS_MAX);
+  c.cyclesPlanned = c.cyclesPlanned || 0;
+  c.prevPeak = c.prevPeak ?? null;
+  c.rirPlan = sanitizeRirPlan(c.rirPlan).slice(0, c.weeks);
+  while (c.rirPlan.length < c.weeks) c.rirPlan.push('');
   c.cycle = c.cycle || 1;
   c.cycleStart = c.cycleStart || mondayOf(today());
   c.days = Array.isArray(c.days) ? c.days : [];

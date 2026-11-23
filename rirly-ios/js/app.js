@@ -12,8 +12,8 @@ const ACTIONS = {
   // semanas y ciclo
   wkprev() { S.cfg.cycleStart = addDays(S.cfg.cycleStart, 7); resetAutoDates(); save(); },
   wknext() { S.cfg.cycleStart = addDays(S.cfg.cycleStart, -7); resetAutoDates(); save(); toast('Semana ' + (curWeek() + 1) + ': sesión reconfigurada'); },
-  setwk(t) { S.cfg.cycleStart = addDays(mondayOf(today()), -7 * clamp(+t.dataset.i || 0, 0, PHASES.length - 1)); resetAutoDates(); save(); },
-  newcycle() { S.cfg.cycle++; S.cfg.cycleStart = mondayOf(today()); S.cfg.drafts = {}; UI.tab = 'hoy'; save(); toast(`Ciclo ${S.cfg.cycle} en marcha`); },
+  setwk(t) { S.cfg.cycleStart = addDays(mondayOf(today()), -7 * clamp(+t.dataset.i || 0, 0, S.cfg.weeks - 1)); resetAutoDates(); save(); },
+  newcycle() { S.cfg.prevPeak = lastWorkWeek(); S.cfg.cycle++; S.cfg.cycleStart = mondayOf(today()); S.cfg.drafts = {}; UI.tab = 'hoy'; save(); toast(`Ciclo ${S.cfg.cycle} en marcha`); },
 
   // sesión en curso
   day(t) { UI.dayId = t.dataset.id; render(); },
@@ -43,6 +43,19 @@ const ACTIONS = {
   // historial
   askdelsess(t) { UI.confirm = 's' + t.dataset.id; render(); },
   delsess(t) { S.sessions = S.sessions.filter(s => s.id !== t.dataset.id); UI.confirm = null; saveLocalSessions(); render(); toast('Sesión borrada'); },
+
+  histmetric(t) { if (Object.hasOwn(METRICS, t.dataset.m)) { UI.histMetric = t.dataset.m; render(); } },
+  linept(t) {
+    const p = Chart.line[+t.dataset.i]; if (!p) return;
+    $('#line-cur').setAttribute('x1', p.x); $('#line-cur').setAttribute('x2', p.x);
+    $('#line-dot').setAttribute('cx', p.x); $('#line-dot').setAttribute('cy', p.y);
+    $('#line-read').textContent = p.text;
+  },
+  volpt(t) {
+    const i = +t.dataset.i; if (!Chart.bars[i]) return;
+    document.querySelectorAll('.ch-bar').forEach(b => b.classList.toggle('cur', +b.dataset.bar === i));
+    $('#vol-read').textContent = Chart.bars[i];
+  },
 
   // copia de seguridad
   export() {
@@ -93,7 +106,7 @@ document.addEventListener('input', e => {
   } else if (ds.p) {                       // editor de Programa
     const day = findDay(ds.d); if (!day) return;
     if (ds.p === 'dayname') day.name = t.value.slice(0, 80);
-    else if (ds.p === 'daytype') day.type = t.value === 'pierna' ? 'pierna' : 'torso';
+    else if (ds.p === 'daytype') { if (DAY_TYPES.includes(t.value)) day.type = t.value; }
     else {
       const exo = day.exercises.find(x => x.id === ds.e); if (!exo) return;
       if (Object.hasOwn(NUM_FIELDS, ds.p)) {
@@ -113,10 +126,25 @@ document.addEventListener('change', e => {
   const t = e.target, ds = t.dataset;
   if (ds.act === 'histex') { UI.histEx = t.value; render(); }
   else if (ds.g === 'cycleStart' && isDate(t.value)) { S.cfg.cycleStart = mondayOf(t.value); save(); }
+  else if (ds.g === 'weeks') setCycleWeeks(parseInt(t.value, 10));
+  else if (ds.g === 'cyclesPlanned') { const n = parseInt(t.value, 10); S.cfg.cyclesPlanned = n >= 1 && n <= CYCLES_MAX ? n : 0; save(); }
+  else if (ds.rirw != null) {
+    const i = +ds.rirw; if (!(i >= 0 && i < S.cfg.weeks)) return;
+    S.cfg.rirPlan[i] = t.value === 'D' ? 'D' : (/^[0-5]$/.test(t.value) ? +t.value : '');
+    resetAutoDates(); save();
+  }
   else if (t.id === 'sdate') render();
   else if (t.id === 'impfile') importFromFile(t);
   else if (ds.p && Object.hasOwn(NUM_FIELDS, ds.p)) syncNumberFields(ds);
 });
+
+/** Cambia la duración del ciclo conservando el RIR ya elegido en las semanas que siguen existiendo. */
+function setCycleWeeks(n) {
+  if (!(n >= WEEKS_MIN && n <= WEEKS_MAX)) return;
+  S.cfg.weeks = n; S.cfg.rirPlan = S.cfg.rirPlan.slice(0, n);
+  while (S.cfg.rirPlan.length < n) S.cfg.rirPlan.push('');
+  resetAutoDates(); save();
+}
 
 /** Al salir de un campo numérico de Programa, deja el formulario igual que lo guardado. */
 function syncNumberFields(ds) {
@@ -186,6 +214,7 @@ function applyImport() {
   if (p.isPlan) {
     // un plan solo trae el programa: se conserva dónde vas y tus datos
     S.cfg.cycle = prev.cycle; S.cfg.cycleStart = prev.cycleStart;
+    S.cfg.weeks = prev.weeks; S.cfg.rirPlan = prev.rirPlan; S.cfg.cyclesPlanned = prev.cyclesPlanned; S.cfg.prevPeak = prev.prevPeak;
     S.cfg.bodyweight = prev.bodyweight || S.cfg.bodyweight;
     S.cfg.drafts = keepDrafts(prev.drafts, S.cfg.days);
   } else {

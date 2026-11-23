@@ -15,9 +15,9 @@ App web instalable para iPhone y Android: sin cuentas, sin servidor y funciona s
 ## Qué hace
 - **Calcula la carga de cada sesión** a partir de lo que hiciste la semana anterior: si te sobraron reps, sube; si costó, consolida.
 - **Autorregulación en directo:** si una serie te sale con otro RIR, reajusta las series pendientes.
-- **Ciclos de 8 semanas** con la semana calculada sola cada lunes, descarga en la S8 y subida automática al empezar ciclo nuevo.
+- **Ciclos a tu medida:** eliges cuántos ciclos y de cuántas semanas (2–16), con el RIR de cada semana. La semana se calcula sola cada lunes y la carga sube al empezar ciclo nuevo.
 - **Tipos de ejercicio:** carga, lastre (suma el peso corporal), peso corporal, isometría y % de otro ejercicio (p. ej. banca de velocidad).
-- **Historial** con la gráfica de tu fuerza estimada (e1RM).
+- **Historial** con gráficas de fuerza estimada (e1RM), peso máximo, volumen por ejercicio y volumen semanal.
 - **Guía paso a paso** la primera vez que se abre.
 - **Privada:** todo se guarda solo en el móvil. Las copias de seguridad son archivos que guardas tú.
 
@@ -63,7 +63,7 @@ Funciona en cualquier hosting estático con HTTPS. Las cabeceras de seguridad de
       {
         "id": "dia1",                 // letras, números, _ o -
         "name": "Día 1 · Torso",
-        "type": "torso",              // torso | pierna (pierna sube 5 kg por ciclo, torso 2,5)
+        "type": "torso",              // torso | pierna | pecho | espalda | hombro | biceps | triceps | antebrazo | core | cuadriceps | femoral | gluteo | gemelo (tren inferior sube 5 kg por ciclo, el resto 2,5)
         "exercises": [
           {
             "id": "banca",

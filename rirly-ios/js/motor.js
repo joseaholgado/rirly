@@ -10,6 +10,17 @@ function weekIdx(ds) { return clamp(rawWeek(ds), 0, S.cfg.weeks - 1); }
 function curWeek() { return weekIdx(today()); }
 function cycleOver() { return rawWeek(today()) >= S.cfg.weeks; }
 
+/** Semana de descarga según lo elegido en Ciclo (por defecto, la última). */
+function weekDeload(w) { const v = S.cfg.rirPlan[w]; return v === 'D' || ((v === '' || v == null) && w === S.cfg.weeks - 1); }
+function phaseOf(w) { return weekDeload(w) ? 'Descarga' : PHASES[Math.min(6, Math.floor(w * 7 / Math.max(1, S.cfg.weeks - 1)))]; }
+function lastWorkWeek() { for (let w = S.cfg.weeks - 1; w >= 0; w--) if (!weekDeload(w)) return w; return 0; }
+/** Reparte la secuencia de RIR del ejercicio entre las semanas del ciclo, con descarga al final. */
+function seqFor(seq, n) {
+  if (n === WEEKS_DEFAULT) return parseSeq(seq, n);
+  const work = parseSeq(seq, WEEKS_DEFAULT).filter(x => x !== 'D'), vals = work.length ? work : [3];
+  return Array.from({ length: n }, (_, i) => i === n - 1 ? 'D' : vals[Math.min(vals.length - 1, Math.floor(i * vals.length / (n - 1)))]);
+}
+
 /* ---------- fórmulas ---------- */
 // e1RM (Epley con RIR): fuerza máxima estimada a partir de una serie.
 const e1 = (load, reps, rir) => load * (1 + (reps + rir) / 30);
@@ -30,8 +41,9 @@ function sortedSessions() {
 /** Lo que prescribe el programa para un ejercicio en la semana w (series, rango, RIR, descarga). */
 function presc(exo, w) {
   w = w ?? curWeek();
-  const v = parseSeq(exo.seq, S.cfg.weeks)[w];
-  const deload = v === 'D' || w === S.cfg.weeks - 1;
+  const chosen = S.cfg.rirPlan[w], fixed = chosen !== '' && chosen != null;   // el RIR elegido en Ciclo manda
+  const v = fixed ? chosen : seqFor(exo.seq, S.cfg.weeks)[w];
+  const deload = v === 'D' || (!fixed && w === S.cfg.weeks - 1);
   return { w, deload, rir: deload ? 4 : v, sets: deload ? Math.max(1, Math.ceil(exo.sets / 2)) : exo.sets, repsMin: exo.repsMin, repsMax: exo.repsMax };
 }
 
@@ -50,7 +62,7 @@ function statsOf(sess, exId, exo) {
   const kgs = sets.map(s => s.kg || 0);
   return {
     sess, e: avg(es), kgs, reps: sets.map(s => s.reps), maxKg: Math.max(...kgs), avgKg: avg(kgs), minReps: Math.min(...sets.map(s => s.reps)),
-    nSets: sets.length, tgtSets: tgt.sets, avgRir: logged.length ? avg(logged.map(s => s.rir)) : null,
+    vol: sets.reduce((sum, s) => sum + tl(s) * s.reps, 0), nSets: sets.length, tgtSets: tgt.sets, avgRir: logged.length ? avg(logged.map(s => s.rir)) : null,
     rirT: T, deload: !!(ent.deload ?? sess.deload), week: sess.week ?? 0, cycle: sess.cycle ?? 1
   };
 }
@@ -123,20 +135,21 @@ function planDeload({ exo, p, inc, base, last, e1txt }, all) {
   const kg = exo.kind === 'bw' ? null : (s1 ? s1.maxKg : roundTo(last.avgKg * 0.85, inc));
   return Object.assign(base, { kg, reps: p.repsMin, type: 'deload', title: 'Descarga · RIR 4–5', msg: `${p.sets} series con la carga de S1${s1 ? '' : ' (aprox.)'}. Técnica y recuperar.`, e1txt });
 }
-// Inicio de ciclo nuevo: carga de S1 anterior + 2,5 kg torso / 5 kg pierna si completaste S7
+// Inicio de ciclo nuevo: carga de S1 anterior + 2,5 kg torso / 5 kg pierna si completaste la última semana de trabajo
 function planNewCycle({ exo, inc, base, rr, e1txt }, hist) {
   const c = S.cfg;
   if (c.cycle <= 1 || exo.kind === 'bw' || hist.some(h => h.cycle === c.cycle)) return null;
   const prevS1 = hist.find(h => h.cycle === c.cycle - 1 && h.week === 0);
   if (!prevS1) return null;
-  const s7 = hist.find(h => h.cycle === c.cycle - 1 && h.week === 6);
+  const peak = c.prevPeak ?? lastWorkWeek();
+  const s7 = hist.find(h => h.cycle === c.cycle - 1 && h.week === peak);
   const ok = !!s7 && s7.nSets >= s7.tgtSets && s7.minReps >= exo.repsMin && s7.kgs.every(k => k === s7.maxKg) && (s7.avgRir == null || s7.avgRir >= s7.rirT - 0.5);
-  const bump = exo.bump != null && exo.bump !== '' ? +exo.bump : (dayOf(exo).type === 'pierna' ? 5 : 2.5);
+  const bump = exo.bump != null && exo.bump !== '' ? +exo.bump : (regionOf(dayOf(exo).type) === 'pierna' ? 5 : 2.5);
   const kg = roundTo(prevS1.maxKg + (ok ? bump : 0), inc);
   return Object.assign(base, {
     kg, reps: rr(Math.min(...prevS1.reps)), type: ok ? 'up' : 'keep', flag: ok, e1txt,
     title: ok ? `Ciclo nuevo: +${fmt(bump)} kg` : 'Ciclo nuevo: misma base',
-    msg: ok ? `Completaste la S7. S1 anterior: ${setsTxt(prevS1)} → hoy <b>${fmt(kg)} kg</b>.` : `En la S7 no completaste todo; repites la base de S1 (${setsTxt(prevS1)}).`
+    msg: ok ? `Completaste la S${peak + 1}. S1 anterior: ${setsTxt(prevS1)} → hoy <b>${fmt(kg)} kg</b>.` : `En la S${peak + 1} no completaste todo; repites la base de S1 (${setsTxt(prevS1)}).`
   });
 }
 function planBodyweight({ p, T, base, last }) {
@@ -243,5 +256,5 @@ function buildSession(day, dr) {
     if (sets.length) entries[exo.id] = { name: exo.name, kind: exo.kind, rir: p.rir, deload: p.deload, target: { sets: p.sets, repsMin: p.repsMin, repsMax: p.repsMax }, sets };
   });
   if (!Object.keys(entries).length) return null;
-  return { id: uid(), date: dr.date || today(), createdAt: Date.now(), dayId: day.id, dayName: day.name, cycle: S.cfg.cycle, week: w, entries };
+  return { id: uid(), date: dr.date || today(), createdAt: Date.now(), dayId: day.id, dayName: day.name, cycle: S.cfg.cycle, week: w, phase: phaseOf(w), entries };
 }
