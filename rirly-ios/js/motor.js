@@ -34,6 +34,12 @@ const fromTotal = (exo, t) => exo.kind === 'bwadd' ? Math.max(0, t - BW()) : t;
 /* ---------- consultas ---------- */
 function exoById(id) { for (const d of S.cfg.days) for (const e of d.exercises) if (e.id === id) return e; return null; }
 function dayOf(exo) { return S.cfg.days.find(d => d.exercises.includes(exo)) || { type: 'torso' }; }
+/** Músculo principal e indirectos: lo elegido a mano o, si no, lo propuesto por el nombre. */
+function musclesOf(exo) {
+  const g = guessMuscles(exo.name), primary = exo.muscle || g.primary;
+  const base = Array.isArray(exo.secondary) ? exo.secondary : (exo.muscle && exo.muscle !== g.primary ? [] : g.secondary);
+  return { primary, secondary: base.filter(m => m !== primary) };
+}
 function sortedSessions() {
   return S.sessions.slice().sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || 0) - (a.createdAt || 0));
 }
@@ -69,6 +75,19 @@ function statsOf(sess, exId, exo) {
 /** Historial de un ejercicio, de más reciente a más antiguo. */
 function historyOf(exId) { const exo = exoById(exId); return sortedSessions().map(s => statsOf(s, exId, exo)).filter(Boolean); }
 const setsTxt = h => esc(h.kgs.map((k, i) => `${fmt(k)}×${h.reps[i]}`).join(', '));
+
+/** Ejercicios y series por músculo en las sesiones de un periodo: week | cycle | all. */
+function muscleStats(range) {
+  const monday = mondayOf(today()), out = new Map(), slot = k => { if (!out.has(k)) out.set(k, { dirEx: 0, dirSets: 0, indEx: 0, indSets: 0 }); return out.get(k); };
+  S.sessions.filter(s => range === 'all' || (range === 'cycle' ? s.cycle === S.cfg.cycle : s.date >= monday)).forEach(s => {
+    Object.entries(s.entries || {}).forEach(([id, ent]) => {
+      const m = musclesOf(exoById(id) || { name: ent.name, muscle: '', secondary: null }), n = (ent.sets || []).length;
+      const d = slot(m.primary || 'none'); d.dirEx++; d.dirSets += n;
+      m.secondary.forEach(k => { const x = slot(k); x.indEx++; x.indSets += n; });
+    });
+  });
+  return out;
+}
 
 /* ---------- motor de cargas ----------
    plan(exo, w) → { kg, reps, sets, rir, deload, type, title, msg, e1txt?, flag?, big? }
@@ -144,7 +163,7 @@ function planNewCycle({ exo, inc, base, rr, e1txt }, hist) {
   const peak = c.prevPeak ?? lastWorkWeek();
   const s7 = hist.find(h => h.cycle === c.cycle - 1 && h.week === peak);
   const ok = !!s7 && s7.nSets >= s7.tgtSets && s7.minReps >= exo.repsMin && s7.kgs.every(k => k === s7.maxKg) && (s7.avgRir == null || s7.avgRir >= s7.rirT - 0.5);
-  const bump = exo.bump != null && exo.bump !== '' ? +exo.bump : (regionOf(dayOf(exo).type) === 'pierna' ? 5 : 2.5);
+  const bump = exo.bump != null && exo.bump !== '' ? +exo.bump : (regionOf(musclesOf(exo).primary || dayOf(exo).type) === 'pierna' ? 5 : 2.5);
   const kg = roundTo(prevS1.maxKg + (ok ? bump : 0), inc);
   return Object.assign(base, {
     kg, reps: rr(Math.min(...prevS1.reps)), type: ok ? 'up' : 'keep', flag: ok, e1txt,

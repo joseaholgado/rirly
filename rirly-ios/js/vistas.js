@@ -48,7 +48,7 @@ function viewHoy() {
   const plans = day.exercises.map(e => plan(e, w));
   let html = `<div class="chips">${c.days.map(d => `<button class="chip ${d.id === day.id ? 'on' : ''}" data-act="day" data-id="${d.id}">${esc(d.name)}${draftHasData(draftOf(d.id)) ? ' •' : ''}</button>`).join('')}</div>`;
   html += bannerHoy(w, plans.filter(p => p.flag).length);
-  html += warmupCard(day.type);
+  html += warmupCard(day);
   day.exercises.forEach((exo, idx) => { html += exerciseCard(day, exo, idx, plans[idx], dr.entries[exo.id]); });
   return html;
 }
@@ -60,8 +60,12 @@ function bannerHoy(w, ups) {
   if (ups) return html + `<div class="banner up"><b>Semana ${w + 1} · ${phaseOf(w)}.</b> He reconfigurado tu sesión: <b>${ups}</b> ejercicio${ups > 1 ? 's suben' : ' sube'} de peso (⬆). Todo está precargado; cambia lo que quieras.</div>`;
   return html + `<div class="banner info"><b>Semana ${w + 1} · ${phaseOf(w)}.</b> Sesión precargada con lo que toca. Marca ✓ cada serie hecha o corrige los números.</div>`;
 }
-function warmupCard(type) {
-  const items = WARMUP.filter(x => x[2] === 'all' || x[2] === regionOf(type));
+function warmupCard(day) {
+  // calentamiento de la zona que más ejercicios tiene ese día; si empatan, la del día
+  const zones = day.exercises.map(e => musclesOf(e).primary).filter(Boolean).map(regionOf);
+  const legs = zones.filter(z => z === 'pierna').length, upper = zones.length - legs;
+  const zone = legs > upper ? 'pierna' : upper > legs ? 'torso' : regionOf(day.type);
+  const items = WARMUP.filter(x => x[2] === 'all' || x[2] === zone);
   return `<div class="card"><details><summary><b class="tx">🔥 Calentamiento</b> · 10–12 min</summary><div class="wu mt8">${items.map(x => `<label><input type="checkbox"><div>${esc(x[0])}<div class="d">${esc(x[1])}</div></div></label>`).join('')}</div></details></div>`;
 }
 function exerciseCard(day, exo, idx, pl, ent) {
@@ -114,12 +118,32 @@ function viewPrograma() {
   <p class="mut small mb0">RIR por semana: valores entre 0 y 5; la D es la descarga (ej. 3·3·2·2·2·1·1·D). Si fijas un RIR en Ciclo, ese manda. Tipo: carga, lastre, peso corporal, isometría o % de banca.</p></div>`;
   c.days.forEach(day => {
     html += `<div class="card"><div class="row"><input class="bold" data-p="dayname" data-d="${day.id}" value="${esc(day.name)}">
-      <select class="w-auto" data-p="daytype" data-d="${day.id}">${DAY_GROUPS.map(([g, items]) => `<optgroup label="${esc(g)}">${items.map(([v, l]) => opt(v, l, day.type === v)).join('')}</optgroup>`).join('')}</select>
       ${confirmBtn('day' + day.id, 'delday', `data-d="${day.id}"`, 'Borrar día')}</div>`;
     day.exercises.forEach((exo, i) => { html += exerciseEditor(day, exo, i); });
     html += `<button class="btn sm mt12" data-act="addex" data-d="${day.id}">+ Ejercicio</button></div>`;
   });
   return html + `<button class="btn full" data-act="addday">+ Añadir día</button>`;
+}
+const autoLabel = name => { const g = guessMuscles(name); return g.primary ? `Automático · ${MUSCLE_LABEL[g.primary]}` : 'Sin asignar'; };
+const secText = list => 'Indirectos: ' + (list.length ? list.map(m => MUSCLE_LABEL[m]).join(', ') : 'ninguno');
+function muscleEditor(exo, a) {
+  const m = musclesOf(exo);
+  const groups = MUSCLE_GROUPS.map(([g, items]) => `<optgroup label="${esc(g)}">${items.map(([v, l]) => opt(v, l, exo.muscle === v)).join('')}</optgroup>`).join('');
+  const chips = MUSCLES.map(k => `<button class="mchip ${m.secondary.includes(k) ? 'on' : ''}" data-act="togsec" ${a} data-m="${k}" aria-pressed="${m.secondary.includes(k)}" ${k === m.primary ? 'disabled' : ''}>${esc(MUSCLE_LABEL[k])}</button>`).join('');
+  return `<div class="mt8" data-musbox="${exo.id}"><label class="f">Músculo principal</label>
+      <select data-p="muscle" ${a}>${opt('', autoLabel(exo.name), !exo.muscle)}${groups}</select>
+      <details class="secbox" data-sec="${exo.id}" ${UI.secOpen.has(exo.id) ? 'open' : ''}><summary class="sec-sum">${esc(secText(m.secondary))}</summary><div class="mchips">${chips}</div></details></div>`;
+}
+/** Actualiza los músculos en pantalla sin repintar, para no quitar el foco del campo que se edita. */
+function paintMuscles(exo) {
+  const box = document.querySelector(`[data-musbox="${exo.id}"]`); if (!box) return;
+  const m = musclesOf(exo);
+  box.querySelector('option[value=""]').textContent = autoLabel(exo.name);
+  box.querySelector('.sec-sum').textContent = secText(m.secondary);
+  box.querySelectorAll('.mchip').forEach(b => {
+    const on = m.secondary.includes(b.dataset.m);
+    b.classList.toggle('on', on); b.setAttribute('aria-pressed', on); b.disabled = b.dataset.m === m.primary;
+  });
 }
 function exerciseEditor(day, exo, i) {
   const a = `data-d="${day.id}" data-e="${exo.id}"`;
@@ -138,6 +162,7 @@ function exerciseEditor(day, exo, i) {
       ${field('Superserie', `<input class="num" data-p="ss" ${a} value="${esc(exo.ss)}" placeholder="—" maxlength="2">`)}
       ${field('Tipo', `<select data-p="kind" ${a}>${KIND_LABELS.map(([v, l]) => opt(v, l, exo.kind === v)).join('')}</select>`)}
     </div>
+    ${muscleEditor(exo, a)}
     <div class="mt8">${field(`RIR S1 → S${S.cfg.weeks}`, `<input class="mono" data-p="seq" ${a} value="${esc(exo.seq)}">`)}</div>
     <div class="mt8">${field('Enlace al vídeo (vacío = búsqueda en YouTube)', `<input data-p="link" ${a} value="${esc(exo.link)}" placeholder="https://…" inputmode="url">`)}</div>
     <div class="row mt8"><input data-p="notes" ${a} value="${esc(exo.notes)}" placeholder="Nota">
@@ -194,6 +219,7 @@ function viewHistorial() {
   if (!UI.histEx || !exMap.has(UI.histEx)) UI.histEx = exMap.keys().next().value || null;
   let html = `<h2>Historial</h2>`;
   if (UI.histEx) html += progressCard(exMap);
+  html += muscleCard();
   html += volumeCard();
   html += '<div class="card">' + ss.map(sessionRow).join('') + '</div>';
   return html;
@@ -237,6 +263,27 @@ function lineChart(pts, m) {
     <text class="ch-txt" x="${L}" y="${H - 7}">${esc(fdate(pts[0].sess.date))}</text><text class="ch-txt" x="${W - Rg}" y="${H - 7}" text-anchor="end">${esc(fdate(pts[pts.length - 1].sess.date))}</text>${hit}</svg>
     <div class="ch-read" id="line-read" aria-live="polite">${esc(Chart.line[Chart.line.length - 1].text)}</div>
     <details class="ch-data"><summary>Ver datos</summary><table><thead><tr><th>Fecha</th><th>${esc(METRICS[m][0])}</th></tr></thead><tbody>${rows}</tbody></table></details>`;
+}
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+const MUSCLE_RANGES = { week: 'Esta semana', cycle: 'Este ciclo', all: 'Todo' };
+function muscleCard() {
+  const r = Object.hasOwn(MUSCLE_RANGES, UI.muscleRange) ? UI.muscleRange : 'week';
+  const tabs = Object.entries(MUSCLE_RANGES).map(([k, l]) => `<button class="seg ${k === r ? 'on' : ''}" data-act="musrange" data-r="${k}" aria-pressed="${k === r}">${l}</button>`).join('');
+  const stats = [...muscleStats(r)].sort((a, b) => (b[0] !== 'none') - (a[0] !== 'none') || b[1].dirSets - a[1].dirSets || b[1].indSets - a[1].indSets);
+  const head = `<div class="card"><h3>Músculos trabajados</h3><div class="segs mt8" role="group" aria-label="Periodo">${tabs}</div>`;
+  if (!stats.length) return head + `<p class="mut small mb0">Aún no hay sesiones en este periodo.</p></div>`;
+  const direct = stats.filter(([k, x]) => k !== 'none' && x.dirEx).slice(0, 3).map(([k, x]) => `${plural(x.dirEx, 'ejercicio', 'ejercicios')} de ${MUSCLE_LABEL[k].toLowerCase()}`);
+  const mx = Math.max(...stats.map(([, x]) => x.dirSets + x.indSets));
+  const rows = stats.map(([k, x]) => {
+    const name = k === 'none' ? 'Sin asignar' : MUSCLE_LABEL[k], W = 300, dw = x.dirSets / mx * W, iw = x.indSets / mx * W;
+    const bars = (x.dirSets ? `<rect class="mbar-d" x="0" y="0" width="${round1(Math.max(dw - (x.indSets ? 1 : 0), 2))}" height="8" rx="2"/>` : '') + (x.indSets ? `<rect class="mbar-i" x="${round1(dw + (x.dirSets ? 1 : 0))}" y="0" width="${round1(Math.max(iw - (x.dirSets ? 1 : 0), 2))}" height="8" rx="2"/>` : '');
+    const main = x.dirEx ? `${plural(x.dirEx, 'ejercicio', 'ejercicios')} · ${plural(x.dirSets, 'serie', 'series')}` : 'Solo indirecto';
+    const ind = x.indEx ? `<div class="mrow-i">Indirecto: ${plural(x.indEx, 'ejercicio', 'ejercicios')} · ${plural(x.indSets, 'serie', 'series')}</div>` : '';
+    return `<div class="mrow"><div class="mrow-h"><span class="semibold">${esc(name)}</span><span class="mut small">${main}</span></div>
+      <svg class="mbar" viewBox="0 0 ${W} 8" preserveAspectRatio="none" width="100%" height="8" role="img" aria-label="${esc(name)}: ${x.dirSets} series directas y ${x.indSets} indirectas">${bars}</svg>${ind}</div>`;
+  }).join('');
+  return head + (direct.length ? `<p class="m-sum">Has hecho ${esc(direct.join(', '))}.</p>` : '') +
+    `<div class="mlegend"><span><i class="sw-d"></i>Directo</span><span><i class="sw-i"></i>Indirecto</span></div>${rows}</div>`;
 }
 /** Volumen total (kg × reps) de las últimas 8 semanas, incluidas las vacías. */
 function weeklyVolume() {

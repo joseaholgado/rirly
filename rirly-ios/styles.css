@@ -190,6 +190,23 @@ textarea.io { margin-top: 10px; font-size: 12px }
 .kpi { min-width: 0; padding: 8px; border-radius: 9px; background: var(--bg); border: 1px solid var(--line) }
 .kpi-l { color: var(--mut); font-size: 11px }
 .kpi-v { margin-top: 2px; color: var(--tx); font: 700 13px var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis }
+.m-sum { margin: 10px 0 0; font-size: 14px; line-height: 1.4; color: var(--tx) }
+.mlegend { display: flex; gap: 14px; margin: 10px 0 2px; color: var(--mut); font-size: 12px }
+.mlegend span { display: inline-flex; align-items: center; gap: 5px }
+.mlegend i { width: 10px; height: 10px; border-radius: 3px }
+.sw-d { background: var(--up) } .sw-i { background: rgba(163,255,18,.34) }
+.mrow { padding: 9px 0; border-bottom: 1px solid var(--line) }
+.mrow:last-child { border-bottom: none; padding-bottom: 0 }
+.mrow-h { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; margin-bottom: 5px }
+.mbar { display: block; border-radius: 3px; background: var(--bg) }
+.mbar-d { fill: var(--up) } .mbar-i { fill: rgba(163,255,18,.34) }
+.mrow-i { margin-top: 4px; color: var(--mut); font-size: 12px; text-align: right }
+.secbox { margin-top: 6px }
+.sec-sum { font-size: 13px; padding: 4px 0 }
+.mchips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 5px }
+.mchip { border: 1px solid var(--line); background: var(--bg); color: var(--mut); border-radius: 999px; padding: 6px 10px; font: 600 12px var(--sans); cursor: pointer }
+.mchip.on { background: var(--up-bg); border-color: rgba(163,255,18,.5); color: var(--up) }
+.mchip:disabled { opacity: .35; cursor: default }
 .sess { border-top: 1px solid var(--line); padding: 10px 0 }
 .sess:first-child { border-top: none }
 .kv { font-family: var(--mono); font-size: 13px; color: var(--soft) }

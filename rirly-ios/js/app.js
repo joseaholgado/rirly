@@ -44,6 +44,14 @@ const ACTIONS = {
   askdelsess(t) { UI.confirm = 's' + t.dataset.id; render(); },
   delsess(t) { S.sessions = S.sessions.filter(s => s.id !== t.dataset.id); UI.confirm = null; saveLocalSessions(); render(); toast('Sesión borrada'); },
 
+  musrange(t) { if (Object.hasOwn(MUSCLE_RANGES, t.dataset.r)) { UI.muscleRange = t.dataset.r; render(); } },
+  togsec(t) {
+    const d = findDay(t.dataset.d), exo = d && d.exercises.find(x => x.id === t.dataset.e), k = t.dataset.m;
+    if (!exo || !MUSCLES.includes(k)) return;
+    const cur = musclesOf(exo).secondary;
+    exo.secondary = cur.includes(k) ? cur.filter(m => m !== k) : [...cur, k];
+    persist(); paintMuscles(exo);
+  },
   histmetric(t) { if (Object.hasOwn(METRICS, t.dataset.m)) { UI.histMetric = t.dataset.m; render(); } },
   linept(t) {
     const p = Chart.line[+t.dataset.i]; if (!p) return;
@@ -92,6 +100,12 @@ document.addEventListener('click', e => {
   if (fn) fn(t);
 });
 
+// recuerda qué listas de músculos están abiertas al repintar Programa
+document.addEventListener('toggle', e => {
+  const id = e.target.dataset && e.target.dataset.sec; if (!id) return;
+  if (e.target.open) UI.secOpen.add(id); else UI.secOpen.delete(id);
+}, true);
+
 /* ---------- edición en vivo ---------- */
 const NUM_FIELDS = { sets: [1, LIMITS.sets], repsMin: [1, LIMITS.reps], repsMax: [1, LIMITS.reps] };
 const TEXT_FIELDS = ['name', 'ss', 'seq', 'link', 'notes'];
@@ -106,7 +120,6 @@ document.addEventListener('input', e => {
   } else if (ds.p) {                       // editor de Programa
     const day = findDay(ds.d); if (!day) return;
     if (ds.p === 'dayname') day.name = t.value.slice(0, 80);
-    else if (ds.p === 'daytype') { if (DAY_TYPES.includes(t.value)) day.type = t.value; }
     else {
       const exo = day.exercises.find(x => x.id === ds.e); if (!exo) return;
       if (Object.hasOwn(NUM_FIELDS, ds.p)) {
@@ -114,7 +127,13 @@ document.addEventListener('input', e => {
         if (n >= min && n <= max) exo[ds.p] = n;
       } else if (ds.p === 'inc') { if (INCS.includes(+t.value)) exo.inc = +t.value; }
       else if (ds.p === 'kind') { if (KINDS.includes(t.value)) exo.kind = t.value; }
-      else if (TEXT_FIELDS.includes(ds.p)) exo[ds.p] = t.value;
+      else if (ds.p === 'muscle') {
+        if (t.value !== '' && !MUSCLES.includes(t.value)) return;
+        exo.muscle = t.value;
+        if (Array.isArray(exo.secondary)) exo.secondary = exo.secondary.filter(m => m !== exo.muscle);
+        paintMuscles(exo);
+      }
+      else if (TEXT_FIELDS.includes(ds.p)) { exo[ds.p] = t.value; if (ds.p === 'name') paintMuscles(exo); }
     }
     persist();
   } else if (ds.g === 'bodyweight') { S.cfg.bodyweight = t.value.replace(/[^0-9.,]/g, '').slice(0, 6); persist(); }

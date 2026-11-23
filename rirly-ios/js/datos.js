@@ -12,15 +12,43 @@ const SA = '3·3·2·2·2·1·1·D';
 const SC = '3·3·3·2·2·2·2·D';
 const PHASES = ['Adaptación', 'Adaptación', 'Acumulación', 'Acumulación', 'Intensificación', 'Intensificación', 'Pico', 'Descarga'];
 const WEEKS_DEFAULT = PHASES.length, WEEKS_MIN = 2, WEEKS_MAX = 16, CYCLES_MAX = 99;
-// Tipo de día: la zona decide el calentamiento y la subida de carga por ciclo.
-const DAY_GROUPS = [
-  ['General', [['torso', 'Torso'], ['pierna', 'Pierna']]],
+// Grupos musculares de cada ejercicio. La zona decide el calentamiento y la subida de carga por ciclo.
+const MUSCLE_GROUPS = [
   ['Tren superior', [['pecho', 'Pecho'], ['espalda', 'Espalda'], ['hombro', 'Hombro'], ['biceps', 'Bíceps'], ['triceps', 'Tríceps'], ['antebrazo', 'Antebrazo'], ['core', 'Core']]],
   ['Tren inferior', [['cuadriceps', 'Cuádriceps'], ['femoral', 'Femoral'], ['gluteo', 'Glúteo'], ['gemelo', 'Gemelo']]]
 ];
-const DAY_TYPES = DAY_GROUPS.flatMap(g => g[1].map(x => x[0]));
+const MUSCLES = MUSCLE_GROUPS.flatMap(g => g[1].map(x => x[0]));
+const MUSCLE_LABEL = Object.fromEntries(MUSCLE_GROUPS.flatMap(g => g[1]));
+const DAY_TYPES = ['torso', 'pierna', ...MUSCLES];   // los días antiguos pueden traer cualquiera de estos
 const LOWER_TYPES = ['pierna', 'cuadriceps', 'femoral', 'gluteo', 'gemelo'];
 const regionOf = type => LOWER_TYPES.includes(type) ? 'pierna' : 'torso';
+// Propuesta por nombre: gana la primera regla que encaje, así que las más concretas van antes.
+const MUSCLE_RULES = [
+  [/fondos? (en |de )?banco/, 'triceps', ['pecho', 'hombro']],
+  [/fondo/, 'pecho', ['triceps', 'hombro']],
+  [/press (de )?pierna|prensa|sentadilla|squat|zancada|bulgara|hack|extension(es)? (de )?(cuadriceps|pierna)|cuadriceps/, 'cuadriceps', ['gluteo']],
+  [/hip thrust|empuje de cadera|puente de gluteo|gluteo/, 'gluteo', ['femoral']],
+  [/curl (de )?femoral|curl (de )?pierna|femoral|isquio|nordic/, 'femoral', []],
+  [/rumano|buenos dias/, 'femoral', ['gluteo', 'espalda']],
+  [/peso muerto/, 'espalda', ['gluteo', 'femoral', 'antebrazo']],
+  [/gemelo|talon|pantorrilla/, 'gemelo', []],
+  [/press frances|triceps|rompecraneos|skull/, 'triceps', []],
+  [/curl (de )?(muneca|antebrazo)|antebrazo|muneca|farmer|paseo del granjero/, 'antebrazo', []],
+  [/curl|biceps/, 'biceps', ['antebrazo']],
+  [/plancha|crunch|abdominal|\bcore\b|rueda|pallof|elevacion(es)? de piernas/, 'core', []],
+  [/press (militar|de hombro|hombro|arnold)|arnold|overhead/, 'hombro', ['triceps']],
+  [/elevacion(es)? (lateral|frontal)|laterales|hombro/, 'hombro', []],
+  [/pajaro|face pull|posterior/, 'hombro', ['espalda']],
+  [/pull ?over/, 'espalda', ['pecho']],
+  [/dominada|jalon|remo\b|espalda|pull ?up|chin ?up/, 'espalda', ['biceps', 'antebrazo']],
+  [/apertura|cruce|pec deck|contractora/, 'pecho', ['hombro']],
+  [/press|banca|flexion|pecho/, 'pecho', ['triceps', 'hombro']]
+];
+const normName = s => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/ñ/g, 'n');
+function guessMuscles(name) {
+  const n = normName(name), hit = MUSCLE_RULES.find(r => r[0].test(n));
+  return hit ? { primary: hit[1], secondary: hit[2] } : { primary: '', secondary: [] };
+}
 const KINDS = ['load', 'bwadd', 'bw', 'iso', 'pct'];
 const KIND_LABELS = [['load', 'Carga'], ['bwadd', 'Lastre'], ['bw', 'Corporal'], ['iso', 'Isometría'], ['pct', '% banca']];
 const INCS = [0.5, 1, 1.25, 2, 2.5, 5];
@@ -36,11 +64,11 @@ const WARMUP = [
 
 /* ---------- estado en memoria ---------- */
 const S = { cfg: null, sessions: [] };                              // datos persistentes
-const UI = { tab: 'hoy', dayId: null, histEx: null, confirm: null }; // estado de pantalla
+const UI = { tab: 'hoy', dayId: null, histEx: null, confirm: null, secOpen: new Set() }; // estado de pantalla
 
 /* ---------- fábricas ---------- */
 function newExercise(name, sets, repsMin, repsMax, inc, seq, extra) {
-  return Object.assign({ id: uid(), name, link: '', sets, repsMin, repsMax, inc, seq, kind: 'load', ss: '', notes: '', bump: null }, extra || {});
+  return Object.assign({ id: uid(), name, link: '', sets, repsMin, repsMax, inc, seq, kind: 'load', ss: '', notes: '', bump: null, muscle: '', secondary: null }, extra || {});
 }
 function newDay(n) { return { id: uid(), name: 'Día ' + n, type: 'torso', exercises: [] }; }
 function DEFAULT() {
@@ -87,6 +115,9 @@ function sanitizeExercise(e) {
     bump: (e.bump == null || e.bump === '') ? null : nz(e.bump, 0, 50, null)
   };
   if (isId(e.ref)) ex.ref = e.ref;
+  // '' y null significan "automático según el nombre"
+  ex.muscle = MUSCLES.includes(e.muscle) ? e.muscle : '';
+  ex.secondary = Array.isArray(e.secondary) ? [...new Set(e.secondary.filter(m => MUSCLES.includes(m)))].filter(m => m !== ex.muscle) : null;
   return ex;
 }
 function sanitizeDraft(d) {
@@ -192,7 +223,7 @@ function normalize(c) {
     day.type = day.type || 'torso'; day.exercises = day.exercises || [];
     day.exercises.forEach(e => {
       e.sets = +e.sets || 3; e.repsMin = +e.repsMin || +e.reps || 5; e.repsMax = Math.max(e.repsMin, +e.repsMax || e.repsMin);
-      e.inc = +e.inc || 2.5; e.seq = e.seq || SA; e.kind = e.kind || 'load'; e.ss = e.ss || ''; e.link = e.link || ''; e.notes = e.notes || '';
+      e.inc = +e.inc || 2.5; e.seq = e.seq || SA; e.kind = e.kind || 'load'; e.ss = e.ss || ''; e.link = e.link || ''; e.notes = e.notes || ''; e.muscle = e.muscle || ''; e.secondary = Array.isArray(e.secondary) ? e.secondary : null;
     });
   });
   c.drafts = c.drafts || {};
