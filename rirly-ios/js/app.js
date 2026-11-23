@@ -58,9 +58,23 @@ const ACTIONS = {
   impcancel() { pendingImport = null; closeModal(); }
 };
 
+/** Cambia de pestaña; la vista entra por el lado hacia el que se avanza. */
+const TAB_ORDER = ['hoy', 'programa', 'bloque', 'historial'];
+function goTab(tab) {
+  const from = TAB_ORDER.indexOf(UI.tab), to = TAB_ORDER.indexOf(tab), view = $('#view');
+  UI.tab = tab; UI.confirm = null; render(); window.scrollTo(0, 0);
+  if (from === to) return;
+  view.classList.remove('slide-next', 'slide-prev');
+  void view.offsetWidth; // reinicia la animación si se cambia de pestaña muy rápido
+  view.classList.add(to > from ? 'slide-next' : 'slide-prev');
+}
+$('#view').addEventListener('animationend', e => {
+  if (e.target === e.currentTarget) e.currentTarget.classList.remove('slide-next', 'slide-prev');
+});
+
 document.addEventListener('click', e => {
   const t = e.target.closest('[data-tab],[data-act]'); if (!t) return;
-  if (t.dataset.tab && !t.dataset.act) { UI.tab = t.dataset.tab; UI.confirm = null; render(); window.scrollTo(0, 0); return; }
+  if (t.dataset.tab && !t.dataset.act) { goTab(t.dataset.tab); return; }
   const fn = Object.hasOwn(ACTIONS, t.dataset.act) ? ACTIONS[t.dataset.act] : null;
   if (fn) fn(t);
 });

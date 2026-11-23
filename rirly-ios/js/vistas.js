@@ -14,7 +14,12 @@ const confirmBtn = (key, act, attrs, label) => UI.confirm === key
 function render() {
   const c = S.cfg, w = curWeek();
   $('#wkchip').innerHTML = cycleOver() ? '<b>Ciclo terminado</b>' : `S${w + 1}/${c.weeks} · <b>${PHASES[w]}</b>`;
-  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === UI.tab));
+  $('#tabs').dataset.active = UI.tab;
+  document.querySelectorAll('#tabs button').forEach(b => {
+    const on = b.dataset.tab === UI.tab;
+    b.classList.toggle('on', on);
+    if (on) b.setAttribute('aria-current', 'page'); else b.removeAttribute('aria-current');
+  });
   const view = { hoy: viewHoy, programa: viewPrograma, bloque: viewCiclo, historial: viewHistorial }[UI.tab] || viewHoy;
   $('#view').innerHTML = view() + `<p class="status" id="status">${statusText()}</p>`;
   renderFoot();

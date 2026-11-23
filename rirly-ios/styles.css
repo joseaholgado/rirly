@@ -10,7 +10,7 @@
   --card2: #222A25; --line: #2C352F; --soft: #C8D1CA; --on-accent: #080B09; --header: rgba(8,11,9,.94);
   --up-bg: rgba(163,255,18,.11); --ok: #3DDBB5; --ok-bg: rgba(61,219,181,.11);
   --info: #5aa9ff; --info-bg: rgba(90,169,255,.11); --dl: #b48cff; --dl-bg: rgba(180,140,255,.12);
-  --warn: #ffcc4d; --warn-bg: rgba(255,204,77,.11); --danger: #ff6b6b; --r: 14px;
+  --warn: #ffcc4d; --warn-bg: rgba(255,204,77,.11); --danger: #ff6b6b; --r: 14px; --nav-h: 66px;
   --sans: -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
 }
@@ -47,7 +47,9 @@ svg text { font-family: var(--mono) }
 .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px }
 
 /* ---------- cabecera y pestañas ---------- */
-header { position: sticky; top: 0; z-index: 10; background: var(--header); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-bottom: 1px solid var(--line); padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 0 calc(14px + env(safe-area-inset-left)) }
+/* el header se desplaza con la página; solo queda fija la franja de la barra de estado del móvil */
+body::before { content: ""; position: fixed; top: 0; left: 0; right: 0; height: env(safe-area-inset-top); background: var(--bg); z-index: 10 }
+header { border-bottom: 1px solid var(--line); padding: calc(10px + env(safe-area-inset-top)) calc(14px + env(safe-area-inset-right)) 10px calc(14px + env(safe-area-inset-left)) }
 .top { display: flex; align-items: center; gap: 10px; justify-content: space-between }
 .brand { font-weight: 800; letter-spacing: -.02em; font-size: 17px }
 .brand span { color: var(--up) }
@@ -55,10 +57,31 @@ header { position: sticky; top: 0; z-index: 10; background: var(--header); -webk
 .wk button { width: 30px; height: 30px; border-radius: 9px; border: 1px solid var(--line); background: var(--card); color: var(--tx); font-size: 16px }
 .wkchip { font-family: var(--mono); font-size: 13px; padding: 6px 10px; border-radius: 9px; background: var(--card2); border: 1px solid var(--line); white-space: nowrap }
 .wkchip b { color: var(--up) }
-nav { display: flex; gap: 2px; margin-top: 10px; overflow-x: auto }
-nav button { flex: 1; background: none; border: none; color: var(--mut); padding: 10px 6px; font: 600 14px var(--sans); border-bottom: 2px solid transparent }
-nav button.on { color: var(--tx); border-bottom-color: var(--up) }
-main { padding: 14px; max-width: 760px; margin: 0 auto 90px }
+main { padding: 14px; max-width: 760px; margin: 0 auto calc(90px + var(--nav-h) + env(safe-area-inset-bottom)) }
+
+/* barra inferior: el indicador se desliza según data-active */
+#tabs { position: fixed; left: 0; right: 0; bottom: 0; z-index: 11; background: var(--header); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); border-top: 1px solid var(--line); padding: 6px calc(8px + env(safe-area-inset-right)) calc(6px + env(safe-area-inset-bottom)) calc(8px + env(safe-area-inset-left)) }
+.tabs-in { position: relative; display: grid; grid-template-columns: repeat(4, 1fr); max-width: 520px; height: calc(var(--nav-h) - 13px); margin: 0 auto }
+#tabs[data-active="hoy"] { --tab-i: 0 } #tabs[data-active="programa"] { --tab-i: 1 } #tabs[data-active="bloque"] { --tab-i: 2 } #tabs[data-active="historial"] { --tab-i: 3 }
+.tab-ind { position: absolute; top: 0; bottom: 0; left: 0; width: 25%; padding: 0 4px; transform: translateX(calc(var(--tab-i, 0) * 100%)); transition: transform .34s cubic-bezier(.34, 1.45, .64, 1) }
+.tab-ind::before { content: ""; display: block; height: 100%; border-radius: 13px; background: var(--up-bg); box-shadow: inset 0 0 0 1px rgba(163,255,18,.28) }
+#tabs button { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; min-width: 0; background: none; border: none; border-radius: 13px; color: var(--mut); padding: 0 2px; font: 600 11px var(--sans); cursor: pointer; transition: color .2s }
+#tabs button svg { width: 23px; height: 23px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round }
+#tabs button.on { color: var(--up) }
+#tabs button.on svg { animation: tab-pop .36s cubic-bezier(.34, 1.56, .64, 1) }
+#tabs button:focus-visible { outline: 2px solid var(--up); outline-offset: -2px }
+@keyframes tab-pop { 0% { transform: translateY(2px) scale(.8) } 100% { transform: none } }
+
+/* transición entre secciones, según hacia qué lado se va */
+body { overflow-x: clip }
+#view.slide-next { animation: view-next .26s cubic-bezier(.22, .8, .3, 1) }
+#view.slide-prev { animation: view-prev .26s cubic-bezier(.22, .8, .3, 1) }
+@keyframes view-next { from { opacity: 0; transform: translateX(26px) } to { opacity: 1; transform: none } }
+@keyframes view-prev { from { opacity: 0; transform: translateX(-26px) } to { opacity: 1; transform: none } }
+@media (prefers-reduced-motion: reduce) {
+  .tab-ind, #tabs button { transition: none }
+  #tabs button.on svg, #view.slide-next, #view.slide-prev { animation: none }
+}
 
 /* ---------- componentes ---------- */
 .card { background: var(--card); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; margin-bottom: 12px }
@@ -113,7 +136,7 @@ textarea.io { margin-top: 10px; font-size: 12px }
 .wu label:last-child { border-bottom: none }
 .wu input { width: auto; margin-top: 3px }
 .wu .d { color: var(--mut); font-size: 12px }
-.foot { position: fixed; left: 0; right: 0; bottom: 0; padding: 10px 14px calc(10px + env(safe-area-inset-bottom)); background: var(--header); border-top: 1px solid var(--line); z-index: 9 }
+.foot { position: fixed; left: 0; right: 0; bottom: calc(var(--nav-h) + env(safe-area-inset-bottom)); padding: 10px 14px; background: var(--header); border-top: 1px solid var(--line); z-index: 9 }
 .foot .in { max-width: 760px; margin: 0 auto; display: flex; gap: 8px; align-items: center }
 .date-auto { width: auto; flex: 0 0 auto }
 
